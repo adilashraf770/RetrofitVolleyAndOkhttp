@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">RetrofitAndVolley</string>
+    <string name="title_activity_main2">MainActivity2</string>
+    <string name="tab_text_1">Tab 1</string>
+    <string name="tab_text_2">Tab 2</string>
+    <string name="fetching_user_data_using_retrofit">Fetching User Data Using Retrofit</string>
+    <string name="fetching_user_data_using_volley">Fetching User Data Using Volley</string>
+</resources>

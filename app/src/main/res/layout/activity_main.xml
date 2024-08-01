@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_marginHorizontal="10dp"
+    android:background="@color/white"
+    android:gravity="center"
+    android:orientation="vertical"
+    tools:context=".view.MainActivity">
+
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/volleyUserData"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="5dp"
+        android:background="@drawable/btn_bgh"
+        android:text="@string/fetching_user_data_using_volley"
+        android:textColor="@color/black"
+        android:textSize="13sp"
+
+        />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/retrofitUserData"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="5dp"
+        android:background="@drawable/btn_bgh"
+        android:text="@string/fetching_user_data_using_retrofit"
+        android:textColor="@color/black"
+        android:textSize="13sp"
+
+        />
+
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/volleyComments"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="5dp"
+        android:background="@drawable/btn_bgh"
+        android:text="Fetching Comments Data Using Volley"
+        android:textColor="@color/black"
+        android:textSize="13sp"
+
+        />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/retrofitComments"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="5dp"
+        android:background="@drawable/btn_bgh"
+        android:text="Fetching User Data Using Retrofit"
+        android:textColor="@color/black"
+        android:textSize="13sp"
+
+        />
+
+</LinearLayout>
