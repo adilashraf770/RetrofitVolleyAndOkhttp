@@ -11,7 +11,11 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.6.0")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
- 
+
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+
     // Volley
     implementation("com.android.volley:volley:1.2.1")
      // Gson Convertor
@@ -24,6 +28,9 @@ dependencies {
     implementation("de.hdodenhof:circleimageview:3.1.0")
     // OkaHttp
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // Please Wait Dialog
+    implementation("io.github.tashilapathum:please-wait:0.5.0")
+
 ...
 }
 ```
@@ -133,16 +140,16 @@ class Users : ArrayList<UsersItem>()
 **UserInterface.kt**
 
 ```kotlin
- package com.adilashraf.retrofitandvolley.interfaces
+package com.adilashraf.retrofitandvolley.interfaces
 
-import com.adilashraf.retrofitandvolley.model.Users
- import retrofit2.Response
-import retrofit2.http.GET
+ import com.adilashraf.retrofitandvolley.model.UsersItem
+import retrofit2.Call
+ import retrofit2.http.GET
 
 interface UserInterface {
 
     @GET("/users")
-    suspend  fun getUsers(): Response<Users>
+    fun getUsers(): Call<List<UsersItem>>
 
 }
 
@@ -152,20 +159,23 @@ interface UserInterface {
 **UserRetrofitBuilder.kt**
 
 ```kotlin
- package com.adilashraf.retrofitandvolley.retrofitbuilders
+package com.adilashraf.retrofitandvolley.retrofitbuilders
 
- import retrofit2.Retrofit
- import retrofit2.converter.gson.GsonConverterFactory
+import com.adilashraf.retrofitandvolley.interfaces.UserInterface
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.create
 
 object UserRetrofitBuilder {
 
     val URL = "https://api.github.com/"
 
-    fun getInstance(): Retrofit{
+    fun getInstance(): UserInterface {
         return Retrofit.Builder()
             .baseUrl(URL)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
+            .create(UserInterface::class.java)
     }
 
 }
@@ -179,71 +189,75 @@ object UserRetrofitBuilder {
 ```kotlin
 package com.adilashraf.retrofitandvolley.view
 
+import android.annotation.SuppressLint
 import android.os.Bundle
-import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.adilashraf.retrofitandvolley.adapter.UserAdapter
 import com.adilashraf.retrofitandvolley.databinding.ActivityRetrofitBinding
-import com.adilashraf.retrofitandvolley.interfaces.UserInterface
-import com.adilashraf.retrofitandvolley.model.Users
 import com.adilashraf.retrofitandvolley.model.UsersItem
 import com.adilashraf.retrofitandvolley.retrofitbuilders.UserRetrofitBuilder
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import retrofit2.HttpException
-import java.io.IOException
+import com.tashila.pleasewait.PleaseWaitDialog
+import retrofit2.Call
+import retrofit2.Response
+import javax.security.auth.callback.Callback
+
 
 class RetrofitActivity : AppCompatActivity() {
     private val binding: ActivityRetrofitBinding by lazy {
         ActivityRetrofitBinding.inflate(layoutInflater)
     }
-    val users = Users()
-    @OptIn(DelicateCoroutinesApi::class)
+    val users = arrayListOf<UsersItem>()
+    private var adapter: UserAdapter? = null
+    private var dialog: PleaseWaitDialog? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
 
-
-        val api = UserRetrofitBuilder.getInstance().create(UserInterface::class.java)
-
-        GlobalScope.launch(Dispatchers.IO) {
-            try {
-                val result = api.getUsers()
-                if (result.isSuccessful && result.body() != null){
-                    users.addAll(result.body() as Users)
-                    withContext(Dispatchers.Main) {
-                        setAdapter(users)
-                    }
-                    Log.d("Result", result.toString())
-                }
-            }catch (e: IOException){
-                Log.d("Error", " ${e.message} ")
-                return@launch
-            }catch (e: HttpException){
-                Log.d("Error", " ${e.message} ")
-                return@launch
-            }
+        adapter = UserAdapter(users, this@RetrofitActivity)
+        binding.apply {
+            recyclerView.layoutManager = LinearLayoutManager(this@RetrofitActivity)
+            recyclerView.adapter = adapter
         }
+
+        dialog = PleaseWaitDialog(this)
+        dialog!!.setMessage("Loading....")
+        dialog!!.isCancelable = false
+        dialog!!.show()
+
+        getUserData()
+
         binding.backImage.setOnClickListener {
             finish()
         }
     }
 
-    private fun setAdapter(users: Users ) {
-        val adapter = UserAdapter(users,this@RetrofitActivity)
-        binding.apply {
-            recyclerView.layoutManager = LinearLayoutManager(this@RetrofitActivity)
-            recyclerView.adapter = adapter
-        }
+    private fun getUserData() {
+        UserRetrofitBuilder.getInstance().getUsers()
+            .enqueue(object : Callback, retrofit2.Callback<List<UsersItem>> {
+                @SuppressLint("NotifyDataSetChanged")
+                override fun onResponse(
+                    p0: Call<List<UsersItem>>,
+                    response: Response<List<UsersItem>>,
+                ) {
+                    if (response.isSuccessful && response.body() != null) {
+                        response.body()!!.forEach {
+                            users.add(it)
+                        }
+                        adapter!!.notifyDataSetChanged()
+                        dialog!!.dismiss()
+                    }
+                }
+
+                override fun onFailure(p0: Call<List<UsersItem>>, p1: Throwable) {}
+            })
     }
+
+
 }
 
 ```
- 
  
 ## Volley
  
@@ -263,6 +277,7 @@ import com.adilashraf.retrofitandvolley.model.UsersItem
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 import com.google.gson.GsonBuilder
+import com.tashila.pleasewait.PleaseWaitDialog
 
 class VolleyActivity : AppCompatActivity() {
     private val binding: ActivityVolleyBinding by lazy {
@@ -271,9 +286,17 @@ class VolleyActivity : AppCompatActivity() {
     val url = "https://api.github.com/users"
     var userItems = arrayOf<UsersItem>()
     var users = Users()
+
+    var dialog: PleaseWaitDialog? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
+
+        dialog = PleaseWaitDialog(this)
+        dialog!!.setMessage("Loading....")
+        dialog!!.isCancelable = false
+        dialog!!.show()
+
 
         val stringReq = StringRequest(url, {
             val gson = GsonBuilder().create()
@@ -283,14 +306,15 @@ class VolleyActivity : AppCompatActivity() {
                 users.add(d)
             }
             setAdapter(users)
-         }, {
-            Toast.makeText(this, "${it.message}",Toast.LENGTH_SHORT).show()
+            dialog!!.dismiss()
+        }, {
+            Toast.makeText(this, "${it.message}", Toast.LENGTH_SHORT).show()
         })
 
         Volley.newRequestQueue(this).add(stringReq)
 
 
-        binding.backImage.setOnClickListener{
+        binding.backImage.setOnClickListener {
             finish()
         }
     }
@@ -305,14 +329,13 @@ class VolleyActivity : AppCompatActivity() {
     }
 }
 ```
-
 ## OkHttp
  
 **OkhttpActivity.kt**
 
 ```kotlin
 package com.adilashraf.retrofitandvolley.view
-
+import android.annotation.SuppressLint
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -337,12 +360,23 @@ class OkhttpActivity : AppCompatActivity() {
     }
     val url = "https://api.github.com/users"
     val client = OkHttpClient()
-    val users = Users()
+    val users = arrayListOf<UsersItem>()
+    var adapter: UserAdapter? = null
 
     @RequiresExtension(extension = Build.VERSION_CODES.S, version = 7)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
+
+        adapter = UserAdapter(users, this)
+        binding.apply {
+            recyclerView.adapter = adapter
+            recyclerView.layoutManager = LinearLayoutManager(this@OkhttpActivity)
+        }
+
+        binding.backImage.setOnClickListener {
+            finish()
+        }
 
         val request = Request.Builder()
             .url(url)
@@ -353,36 +387,23 @@ class OkhttpActivity : AppCompatActivity() {
                 Log.e("myError", "${e.message}")
             }
 
+            @SuppressLint("NotifyDataSetChanged")
             override fun onResponse(call: Call, response: Response) {
-                runOnUiThread {
-                    try {
-                        if (response.isSuccessful && response.body != null) {
-                            val result =
-                                GsonBuilder().create().fromJson(response.body.toString(), Users::class.java)
-                             users.addAll(result)
-                             setAdapter(users)
-                            Log.d("Data", "${response.body}")
-                        }
-                    }catch (e: Error){
-                        Log.e("myError", " ${e.message}", )
+
+                if (response.isSuccessful && response.body != null) {
+                    val result =
+                        GsonBuilder().create()
+                            .fromJson(response.body.toString(), Users::class.java)
+                    result.forEach {
+                        users.add(it)
                     }
+                    adapter!!.notifyDataSetChanged()
                 }
             }
         })
     }
-
-    private fun setAdapter(users: Users) {
-        val adapter = UserAdapter(users, this)
-        binding.apply {
-            recyclerView.adapter = adapter
-            recyclerView.layoutManager = LinearLayoutManager(this@OkhttpActivity)
-        }
-
-        binding.backImage.setOnClickListener {
-            finish()
-        }
-    }
 }
+
 
 ````
 
